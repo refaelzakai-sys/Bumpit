@@ -1,0 +1,27 @@
+{
+  "short_name": "Bumpit",
+  "name": "Bumpit - Fast File Transfer",
+  "description": "העברת קבצים בנגיעה אחת לכל סוגי המכשירים",
+  "icons": [
+    {
+      "src": "https://i.ibb.co/wNLdsyMt/432078-rounded-1920x1920.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://i.ibb.co/wNLdsyMt/432078-rounded-1920x1920.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#f0f2f5",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#007bff",
+  "orientation": "portrait",
+  "lang": "he"
+}
+
