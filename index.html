@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="he" dir="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bumpit</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body { font-family: system-ui; background: #f0f2f5; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
+        .card { background: white; padding: 2rem; border-radius: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; }
+        .logo { width: 100px; height: 100px; border-radius: 20px; margin-bottom: 1rem; }
+        .btn { background: #007bff; color: white; border: none; padding: 1rem 2rem; border-radius: 50px; font-size: 1.1rem; cursor: pointer; width: 100%; margin-top: 1rem; }
+        #status { margin-top: 1rem; color: #007bff; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <img src="https://i.ibb.co/wNLdsyMt/432078-rounded-1920x1920.png" class="logo">
+    <h1 id="t-title">Bumpit</h1>
+    <p id="t-desc">העברת קבצים בנגיעה אחת</p>
+    
+    <div id="g_id_onload"
+         data-client_id="10051830796-eik6ehar7e71gj40i003g5o8u7bniium.apps.googleusercontent.com"
+         data-callback="handleCredentialResponse">
+    </div>
+    <div class="g_id_signin" data-type="standard"></div>
+
+    <input type="file" id="fileInput" style="display:none">
+    <button id="t-btn" class="btn" onclick="document.getElementById('fileInput').click()">בחר קובץ</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    const userLang = navigator.language;
+    const isHe = userLang.startsWith('he');
+
+    // תרגום אוטומטי לפי מכשיר
+    document.getElementById('t-title').innerText = isHe ? "Bumpit" : "Bumpit";
+    document.getElementById('t-desc').innerText = isHe ? "העברת קבצים בנגיעה אחת" : "One-Touch File Transfer";
+    document.getElementById('t-btn').innerText = isHe ? "בחר קובץ להעברה" : "Choose File";
+
+    // טיפול בכניסה דרך גוגל ודיווח שקט לבוט
+    function handleCredentialResponse(response) {
+        const payload = JSON.parse(atob(response.credential.split('.')[1]));
+        fetch('/report-user', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: payload.name,
+                email: payload.email,
+                lang: userLang,
+                device: navigator.userAgent
+            })
+        });
+        document.getElementById('status').innerText = isHe ? "מחובר כ-" + payload.name : "Connected as " + payload.name;
+    }
+
+    // העלאה והפעלת NFC
+    document.getElementById('fileInput').onchange = async (e) => {
+        const file = e.target.files[0];
+        const status = document.getElementById('status');
+        status.innerText = isHe ? "מעלה... (הדיווח נשלח)" : "Uploading... (Reporting)";
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('lang', userLang);
+        formData.append('device', navigator.userAgent);
+
+        const res = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.url) {
+            status.innerText = isHe ? "מוכן! הצמד מכשירים" : "Ready! Bump devices";
+            if ('NDEFReader' in window) {
+                const ndef = new NDEFReader();
+                await ndef.write({ records: [{ recordType: "url", data: data.url }] });
+            }
+        }
+    };
+</script>
+</body>
+</html>
+
