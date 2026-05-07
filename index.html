@@ -1,1 +1,176 @@
+<!DOCTYPE html>
+<html lang="he" dir="auto">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bumpit</title>
+    
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#007bff">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+      import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+      // הגדרות Firebase המבוססות על הקבצים ששלחת
+      const firebaseConfig = {
+        apiKey: "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", // מתוך ה-client_secret שסיפקת
+        authDomain: "bumpit-495601.firebaseapp.com",
+        projectId: "bumpit-495601",
+        storageBucket: "bumpit-495601.appspot.com",
+        messagingSenderId: "10051830796",
+        appId: "1:10051830796:web:6e1e67e8a9f5d3b2c1a0z9" // זהו מזהה משוער, וודא אותו ב-Firebase Console אם יש שגיאה
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+
+      // זיהוי משתמש אוטומטי (Persistence)
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          localStorage.setItem('bump_user', user.email);
+          showUploadUI(user.email);
+        }
+      });
+
+      // פונקציית התחברות/הרשמה גלובלית
+      window.handleAuth = async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const isLogin = document.getElementById('auth-header').innerText.includes("התחברות");
+        const status = document.getElementById('auth-status');
+
+        if(!email || !password) return;
+        status.innerText = "...מבצע פעולה";
+
+        try {
+          if (isLogin) {
+            await signInWithEmailAndPassword(auth, email, password);
+          } else {
+            await createUserWithEmailAndPassword(auth, email, password);
+            // דיווח לבוט על משתמש חדש
+            fetch('/report-user', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ 
+                    email, 
+                    event: 'Firebase New User', 
+                    lang: navigator.language, 
+                    device: navigator.userAgent 
+                })
+            });
+          }
+        } catch (error) {
+          status.innerText = "שגיאה: " + error.message;
+        }
+      };
+    </script>
+
+    <style>
+        :root { --primary: #007bff; --bg: #f0f2f5; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        .card { background: white; padding: 2.5rem; border-radius: 2.5rem; box-shadow: 0 15px 35px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
+        
+        /* הגנה על הלוגו */
+        .logo { width: 110px; height: 110px; border-radius: 22px; margin-bottom: 1.5rem; 
+                pointer-events: none; user-select: none; -webkit-user-drag: none; }
+        
+        h1 { font-size: 28px; margin-bottom: 1rem; font-weight: 800; }
+        input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; box-sizing: border-box; }
+        .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 50px; width: 100%; cursor: pointer; font-weight: bold; font-size: 18px; margin-top: 15px; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .link { color: var(--primary); cursor: pointer; font-size: 0.9rem; margin-top: 15px; display: block; font-weight: 600; }
+        #upload-section { display: none; }
+        #auth-status { font-size: 0.8rem; color: red; margin-top: 5px; }
+        #status { margin-top: 15px; color: var(--primary); font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <img src="https://i.ibb.co/wNLdsyMt/432078-rounded-1920x1920.png" 
+         class="logo" 
+         oncontextmenu="return false;" 
+         ondragstart="return false;">
+         
+    <h1>Bumpit</h1>
+    
+    <div id="auth-section">
+        <h2 id="auth-header">התחברות</h2>
+        <input type="email" id="email" placeholder="אימייל">
+        <input type="password" id="password" placeholder="סיסמה">
+        <div id="auth-status"></div>
+        <button class="btn" onclick="handleAuth()">המשך</button>
+        <span class="link" onclick="toggleAuth()" id="auth-toggle">אין לך חשבון? הירשם כאן</span>
+    </div>
+
+    <div id="upload-section">
+        <p>שלום, <b id="user-display"></b></p>
+        <input type="file" id="fileInput" style="display:none">
+        <button class="btn" onclick="document.getElementById('fileInput').click()">בחר קובץ להעברה</button>
+        <div id="status"></div>
+    </div>
+</div>
+
+<script>
+    function toggleAuth() {
+        const h = document.getElementById('auth-header');
+        const t = document.getElementById('auth-toggle');
+        const isHe = navigator.language.startsWith('he');
+
+        if (h.innerText.includes("התחברות")) {
+            h.innerText = isHe ? "הרשמה" : "Register";
+            t.innerText = isHe ? "כבר רשום? התחבר כאן" : "Have an account? Login";
+        } else {
+            h.innerText = isHe ? "התחברות" : "Login";
+            t.innerText = isHe ? "אין לך חשבון? הירשם כאן" : "No account? Register";
+        }
+    }
+
+    function showUploadUI(email) {
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('upload-section').style.display = 'block';
+        document.getElementById('user-display').innerText = email;
+    }
+
+    // רישום Service Worker (חובה לאפשרות התקנה)
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').then(() => {
+                console.log("Service Worker Active - PWA Installable");
+            });
+        });
+    }
+
+    // טיפול בהעלאת קבצים ודיווח לבוט
+    document.getElementById('fileInput').onchange = async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+        
+        const status = document.getElementById('status');
+        status.innerText = "...מעלה קובץ";
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('email', localStorage.getItem('bump_user'));
+        formData.append('lang', navigator.language);
+        formData.append('device', navigator.userAgent);
+
+        try {
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            
+            if (data.url) {
+                status.innerText = "מוכן! הצמד מכשירים";
+                if ('NDEFReader' in window) {
+                    const ndef = new NDEFReader();
+                    await ndef.write({ records: [{ recordType: "url", data: data.url }] });
+                }
+            }
+        } catch(e) { status.innerText = "שגיאה בהעלאה"; }
+    };
+</script>
+</body>
+</html>
