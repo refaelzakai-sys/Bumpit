@@ -1,8 +1,8 @@
-// Service Worker for Bumpit PWA
+const CACHE_NAME = 'bump-luxury-v1';
 self.addEventListener('install', (e) => {
-    self.skipWaiting();
+    e.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(['/'])));
 });
 
-self.addEventListener('fetch', (event) => {
-    // מאפשר לאפליקציה לעבוד גם במצב לא מקוון חלקי
+self.addEventListener('fetch', (e) => {
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
