@@ -2,91 +2,215 @@
 <html lang="he" dir="auto">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bumpit</title>
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#007bff">
+    <meta name="theme-color" content="#0a0a0a">
     
     <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-      import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-      import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-      // המפתחות החדשים שלך מ-Firebase
-      const firebaseConfig = {
-        apiKey: "AIzaSyBzyVDlZNSjFJuS8Un_75rlIZF3dXLDVB4",
-        authDomain: "bumpit-94edb.firebaseapp.com",
-        databaseURL: "https://bumpit-94edb-default-rtdb.firebaseio.com",
-        projectId: "bumpit-94edb",
-        storageBucket: "bumpit-94edb.firebasestorage.app",
-        messagingSenderId: "270788408373",
-        appId: "1:270788408373:web:de5d3f0087013085686d7c"
-      };
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzyVDlZNSjFJuS8Un_75rlIZF3dXLDVB4",
+            authDomain: "bumpit-94edb.firebaseapp.com",
+            projectId: "bumpit-94edb",
+            storageBucket: "bumpit-94edb.firebasestorage.app",
+            messagingSenderId: "270788408373",
+            appId: "1:270788408373:web:de5d3f0087013085686d7c"
+        };
 
-      const app = initializeApp(firebaseConfig);
-      const auth = getAuth(app);
-      const db = getDatabase(app);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
 
-      onAuthStateChanged(auth, (user) => {
-        if (user) showUploadUI(user.email);
-      });
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                localStorage.setItem('user_email', user.email);
+                showUploadUI(user.email);
+            }
+        });
 
-      window.handleAuth = async () => {
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const isLogin = document.getElementById('auth-header').innerText.includes("התחברות");
-        const status = document.getElementById('auth-status');
+        window.handleAuth = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const isLogin = document.getElementById('auth-header').innerText.includes("כניסה");
+            const btn = document.getElementById('main-auth-btn');
+            
+            try {
+                btn.innerText = "...טוען";
+                if (isLogin) {
+                    await signInWithEmailAndPassword(auth, email, password);
+                } else {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    reportAction('New Registration');
+                }
+            } catch (e) {
+                alert("שגיאה: " + e.message);
+                btn.innerText = "המשך";
+            }
+        };
 
-        try {
-          if (isLogin) {
-            await signInWithEmailAndPassword(auth, email, password);
-          } else {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            // שמירת המשתמש במסד הנתונים כדי שיזכר לתמיד
-            const userId = userCredential.user.uid;
-            await set(ref(db, 'users/' + userId), { email: email, registeredAt: Date.now() });
-          }
-        } catch (error) { status.innerText = "שגיאה: " + error.message; }
-      };
+        async function reportAction(event) {
+            const email = localStorage.getItem('user_email');
+            fetch('/report-user', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ email, event, device: navigator.userAgent })
+            });
+        }
     </script>
+
     <style>
-        :root { --primary: #007bff; --bg: #f0f2f5; }
-        body { font-family: system-ui; background: var(--bg); display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 2rem; border-radius: 2.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 90%; max-width: 400px; text-align: center; }
-        .logo { width: 110px; height: 110px; border-radius: 22px; margin-bottom: 1.5rem; pointer-events: none; -webkit-user-drag: none; }
-        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px; }
-        .btn { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 50px; width: 100%; cursor: pointer; font-weight: bold; }
-        #upload-section { display: none; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { 
+            margin: 0; background: #0a0a0a; color: white;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden;
+        }
+        
+        /* רקע אנימטיבי עדין */
+        body::before {
+            content: ""; position: absolute; width: 300px; height: 300px; background: #007bff;
+            filter: blur(150px); border-radius: 50%; top: -50px; left: -50px; opacity: 0.4; z-index: -1;
+        }
+
+        .app-container {
+            width: 100%; max-width: 420px; padding: 2rem; text-align: center;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .logo-wrapper {
+            position: relative; display: inline-block; margin-bottom: 2rem;
+        }
+        .logo { 
+            width: 130px; height: 130px; border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            pointer-events: none; user-select: none;
+        }
+
+        h1 { font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; margin: 0; background: linear-gradient(to right, #fff, #888); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px);
+            border-radius: 30px; padding: 2rem; border: 1px solid rgba(255,255,255,0.1);
+            margin-top: 2rem;
+        }
+
+        input {
+            width: 100%; background: rgba(255,255,255,0.08); border: none;
+            padding: 18px; border-radius: 15px; color: white; font-size: 1rem;
+            margin-bottom: 12px; outline: none; transition: 0.3s;
+        }
+        input:focus { background: rgba(255,255,255,0.15); box-shadow: 0 0 0 2px #007bff; }
+
+        .btn-primary {
+            width: 100%; background: #007bff; color: white; border: none;
+            padding: 18px; border-radius: 18px; font-size: 1.1rem; font-weight: 700;
+            cursor: pointer; transition: 0.3s; box-shadow: 0 10px 20px rgba(0, 123, 255, 0.3);
+        }
+        .btn-primary:active { transform: scale(0.96); }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #007bff, #00c6ff);
+            height: 180px; width: 180px; border-radius: 50%; margin: 2rem auto;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 3rem; cursor: pointer; box-shadow: 0 15px 45px rgba(0, 123, 255, 0.4);
+            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .upload-btn:hover { transform: rotate(10deg) scale(1.05); }
+
+        #status { font-size: 0.9rem; color: #888; margin-top: 1rem; }
+        .progress-bar { width: 0%; height: 4px; background: #007bff; position: fixed; bottom: 0; left: 0; transition: 0.3s; }
     </style>
 </head>
 <body>
-<div class="card">
-    <img src="https://i.ibb.co/wNLdsyMt/432078-rounded-1920x1920.png" class="logo" oncontextmenu="return false;">
-    <h1>Bumpit</h1>
-    <div id="auth-section">
-        <h2 id="auth-header">התחברות</h2>
-        <input type="email" id="email" placeholder="אימייל">
-        <input type="password" id="password" placeholder="סיסמה">
-        <div id="auth-status" style="color:red; font-size:12px;"></div>
-        <button class="btn" onclick="handleAuth()">המשך</button>
-        <p onclick="toggleAuth()" style="cursor:pointer; color:var(--primary); margin-top:10px;">אין לך חשבון? הירשם</p>
+
+<div class="app-container">
+    <div class="logo-wrapper">
+        <img src="https://i.ibb.co/wNLdsyMt/432078-rounded-1920x1920.png" class="logo" oncontextmenu="return false;">
     </div>
-    <div id="upload-section">
-        <p>שלום, <b id="user-email"></b></p>
-        <button class="btn" onclick="document.getElementById('fileInput').click()">בחר קובץ להעברה</button>
+    
+    <h1 id="app-name">Bumpit</h1>
+
+    <div id="auth-section" class="glass-panel">
+        <h2 id="auth-header" style="margin-top:0">כניסה</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button class="btn-primary" onclick="handleAuth()" id="main-auth-btn">המשך</button>
+        <p style="font-size: 0.8rem; color: #888; cursor: pointer; margin-top:15px" onclick="toggleMode()" id="mode-toggle">אין חשבון? צור אחד</p>
+    </div>
+
+    <div id="upload-section" style="display:none">
+        <div class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            <span>🚀</span>
+        </div>
+        <p style="font-weight: 600; font-size: 1.2rem">הקש להעלאת קובץ</p>
+        <p style="color: #666; font-size: 0.8rem">עד 1.5GB • כל סוגי הקבצים</p>
         <input type="file" id="fileInput" style="display:none">
+        <div id="status">Ready to Bump</div>
     </div>
 </div>
+
+<div class="progress-bar" id="p-bar"></div>
+
 <script>
-    function toggleAuth() {
+    function toggleMode() {
         const h = document.getElementById('auth-header');
-        h.innerText = h.innerText === "התחברות" ? "הרשמה" : "התחברות";
+        const t = document.getElementById('mode-toggle');
+        const isLogin = h.innerText === "כניסה";
+        h.innerText = isLogin ? "הרשמה" : "כניסה";
+        t.innerText = isLogin ? "יש לך חשבון? התחבר" : "אין חשבון? צור אחד";
     }
+
     function showUploadUI(email) {
         document.getElementById('auth-section').style.display = 'none';
         document.getElementById('upload-section').style.display = 'block';
-        document.getElementById('user-email').innerText = email;
     }
+
+    document.getElementById('fileInput').onchange = async (e) => {
+        const file = e.target.files[0];
+        if(!file) return;
+
+        const status = document.getElementById('status');
+        const bar = document.getElementById('p-bar');
+        status.innerText = "מעלה... " + (file.size / (1024*1024)).toFixed(1) + "MB";
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('email', localStorage.getItem('user_email'));
+        formData.append('device', navigator.userAgent);
+
+        try {
+            // שימוש ב-XMLHttpRequest כדי לעקוב אחרי אחוז ההעלאה
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100;
+                    bar.style.width = percent + "%";
+                    status.innerText = "מעלה: " + Math.round(percent) + "%";
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    status.innerText = "✅ מוכן! הצמד מכשירים";
+                    bar.style.width = "0%";
+                    // כאן אפשר להפעיל את ה-NFC אם רוצים
+                } else {
+                    status.innerText = "❌ שגיאה בהעלאה";
+                }
+            };
+
+            xhr.send(formData);
+        } catch (err) {
+            status.innerText = "❌ שגיאה בחיבור";
+        }
+    };
+
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js');
     }
